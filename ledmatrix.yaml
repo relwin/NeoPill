@@ -1,0 +1,25 @@
+# NeoPill LED matrix onfig yaml
+
+serial_port: COM9   # which serial port is NeoPill  
+#timing_T1H: 550      # optionally adjust bitstream timing, T1H, RES, in ns
+#timing_RES: 48000
+fps_limit: 60    #limit displayed frame rate
+
+# FastLED: SerpentineLayout = false
+# Adafruit: NEO_MATRIX_TOP+NEO_MATRIX_LEFT+NEO_MATRIX_ROWS+NEO_MATRIX_PROGRESSIVE    
+    
+matrix:  
+-   ledcolor: GRB # GRB, GRBW. must match target device
+    #number of LEDs total = matrix_w*matrix_h, and must match target device
+    matrix_w: 16  # number of LEDs across in matrix 
+    matrix_h: 16  # number of LEDs high in matrix 
+    length: 1024  # display size in pix
+    height: 1024   #in pix
+    gap: 2        #in pix 0..n, some small inter-pixel gap
+    style: circle # circle or rect. If many LEDs circles turn into dots!
+    wposx: 20    #x,y window position
+    wposy: 40
+    wname: "NeoPill Matrix Demo"    
+    
+
+  
