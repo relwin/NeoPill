@@ -11,8 +11,8 @@ Or use STM32CubeProgrammer v2.6.0 to flash the Hex file.
 
 
 Python code for the PC side is 'stripsym.py', and two YAML config files ledstrip.yaml, ledmatrix.yaml.
+
 Command Line:
   python stripsim.py ledstrip.yaml
 or
   python stripsim.py ledmatrix.yaml
-  
