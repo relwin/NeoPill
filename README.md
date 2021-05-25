@@ -15,3 +15,4 @@ Command Line:
   python stripsim.py ledstrip.yaml
 or
   python stripsim.py ledmatrix.yaml
+  
