@@ -25,6 +25,8 @@ timing_T1H, timing_RES config items.
 For python 3.8.1
 
 R. Elwin 5/2021
+Egar Almeida 9/2023 (custom layout)
+
 """
 import threading
 import queue
@@ -90,6 +92,10 @@ class LEDStrip(object):
         self.timing_mod = None
         self.strip_type = {}  # data from yaml file
         self.matrix_type = {}  # data from yaml file
+        self.custom_type = {} # data from yaml file for custom panel
+        self.custom_data = {}
+        self.custom_width = 0
+        self.custom_height = 0
         self.led_count = 0
         self.led_width = 1
         self.led_height = 1
@@ -128,6 +134,11 @@ class LEDStrip(object):
                     self.serial_port = value
                 elif key == "fps_limit":
                     self.display_rate_limit = 1 / (value * 1.1)  # use time per frame, plus 10% slop
+                elif key == "config":
+                    self.custom_type = value
+                    self.generate_display = self.generate_display_custom
+                elif key == "data":
+                    self.custom_data = value
 
     # format timing mod msg, specific to NeoPill timing. Calcs TIM2,4 delay, in clock counts (not ns).
     def format_timing_mod(self):
@@ -181,6 +192,34 @@ class LEDStrip(object):
         print(pygame.display.get_driver())
         print(pygame.display.Info())
 
+    # generate pygame display window filled with custom LED data
+    def generate_display_custom(self):
+        self.led_create = self.led_create_custom
+        os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (self.custom_type[0]['wposx'], self.custom_type[0]['wposy'])  # window position
+        
+        # "inflates" the data according to the specified array in the yaml
+        if(self.custom_type[0]['inflate']):
+            self.custom_data = self.inflate_data(self.custom_data)
+
+        # calculate total leds from new data
+        self.led_count  = 0
+        for arr in self.custom_data:
+            self.led_count += sum(arr)
+        
+        # calculate width and height
+        self.custom_height = len(self.custom_data)
+        self.custom_width = len(max(self.custom_data, key=len))
+
+        self.led_width = int(self.custom_type[0]['length'] / self.custom_width) - self.custom_type[0]['gap']  # gap is symmetric side & bottom
+        strip_width = (self.led_width + self.custom_type[0]['gap']) * self.custom_width - self.custom_type[0]['gap']
+        self.led_height = int(self.custom_type[0]['height'] / self.custom_height) - self.custom_type[0]['gap']
+        strip_height = (self.led_height + self.custom_type[0]['gap']) * self.custom_height - self.custom_type[0]['gap']
+        size = (strip_width, strip_height)  # display (w,h), adjusted width, height
+        self.screen = pygame.display.set_mode(size, flags=0, display=0)  # vsync=0 default
+        pygame.display.set_caption(self.custom_type[0]['wname'])
+        print(pygame.display.get_driver())
+        print(pygame.display.Info())
+
     # matrix option, populate LED array with LED surface objects, filled circles or plain squares
     def led_create_matrix(self, num):
         for j in range(0, self.matrix_type[0]['matrix_h']):
@@ -192,6 +231,25 @@ class LEDStrip(object):
                 color = pygame.Color(j, (i * 3) % 256, 10, 255)  # initial RGBA color, also fills in Alpha of RGBA
                 self.ledarray.append((surf, rect, color))  # surf_obj[0], rect[1], color[2]
         self.led_format(self.matrix_type[0]['style'], self.matrix_type[0]['ledcolor'], num)
+
+    # custom option
+    # TODO: Not major, but if the incoming data includes many LEDs per "pixel" (showing the same value) and
+    # the user sets inflate: false, then this will create all repeated pixels in the same location.
+    def led_create_custom(self, num):
+        for idy, arr in enumerate(self.custom_data):
+            for idx, value in enumerate(arr):
+                if(value > 0):
+                    surf = pygame.Surface((self.led_width, self.led_height))  # surface object
+                    rect = surf.get_rect()
+                    rect.left = idx * (self.led_width + self.custom_type[0]['gap'])
+                    rect.top = idy * (self.led_height + self.custom_type[0]['gap'])
+                    color = pygame.Color(idy, (idx * 3) % 256, 10, 255)  # initial RGBA color, also fills in Alpha of RGBA
+                    
+                    for _ in range(0, value):
+                        self.ledarray.append((surf, rect, color)) 
+                
+        self.led_format(self.custom_type[0]['style'], self.custom_type[0]['ledcolor'], num)
+
 
     # assign LED style, color order, frame size
     def led_format(self, style, ledcolor, num):
@@ -258,6 +316,22 @@ class LEDStrip(object):
                     self.ledarray[k][LEDStrip.IDX_color][j] = c
             # ledarray[k][5][3] = 255     # alpha already populated
             i += 1
+    
+    # helper functions
+    def inflate_array(self, array):
+        inflated_array = []
+        for value in array:
+            if value == 0:
+                inflated_array.append(0)
+            else:
+                inflated_array.extend([1] * (value))
+        return inflated_array
+
+    def inflate_data(self, data):
+        inflated_arrays = []
+        for arr in data:
+            inflated_arrays.append(self.inflate_array(arr))
+        return inflated_arrays   
 
 
 class SerialReader(object):
